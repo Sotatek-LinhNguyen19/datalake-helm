@@ -1,0 +1,41 @@
+# Namespace for platform
+namespace: staging
+
+replicaCount: 1
+
+image:
+  repository: linhnguyen17/datalake-rag
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# Secret to pull image from registry.sotaicg.com repository
+imagePullSecrets:
+  - name: repository-sotaicg-secret
+    enabled: false
+
+# Deployment
+deployment:
+  name: datalake-rag-deployment
+
+# Service or Stateful
+service:
+  name: datalake-rag-service
+  type: NodePort 
+  protocol: TCP
+  port: 8080
+  targetPort: 31112
+
+container:
+  name: datalake-rag-pod
+  portName: http
+  portValue: 8080
+  portProtocol: TCP
+
+# Secret
+# Environment-backend
+# Environment-chatpot
+environment_chatpot:
+  name: rag-vault-stg
+
+annotations:
+  secret.reloader.stakater.com/reload: "rag-vault-stg"

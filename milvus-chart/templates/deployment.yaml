@@ -1,0 +1,103 @@
+{{- range $cdc := .Values.cdc }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $cdc.name }}
+  namespace: {{ $.Values.namespace }}
+  {{- with $.Values.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: {{ $cdc.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ $cdc.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ $cdc.name }}
+        same: pod-affinity
+    spec:
+      {{- range $.Values.imagePullSecrets }}
+      imagePullSecrets:
+        - name: {{ .name }}
+      {{- end }}
+      securityContext:
+        {{- toYaml $.Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ $cdc.name }}
+          image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag }}"
+          securityContext:
+            {{- toYaml $.Values.securityContext | nindent 12 }}
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ $.Values.pod.containerPort }}
+              name: http
+              protocol: {{ $.Values.pod.protocol }}
+          command:
+            - "/bin/sh"
+            - "-c"
+            - |
+              KAFKA_TOPIC_PARTITION=$(cat /mnt/config/index_id)
+              echo "Running with KAFKA_TOPIC_PARTITION=$KAFKA_TOPIC_PARTITION"
+              {{ $cdc.command }}
+          resources:
+            limits:
+              cpu: "{{ $.Values.resources.limits.cpu }}"
+              memory: "{{ $.Values.resources.limits.memory }}"
+            requests:
+              cpu: "{{ $.Values.resources.requests.cpu }}"
+              memory: "{{ $.Values.resources.requests.memory }}"  
+          volumeMounts:
+            - name: config-volume
+              mountPath: /mnt/config
+          envFrom:
+            - secretRef:
+                name: {{ $.Values.environment_cdc.name }}
+          env:
+            - name: KAFKA_TOPIC_PARTITION
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.annotations['index-id']
+            # {{- if $cdc.partitioning }}
+            # - name: KAFKA_IS_PARTITION
+            #   value: "true"
+            # {{- else }}
+            # - name: KAFKA_IS_PARTITION
+            #   value: "false"
+            # {{- end}}
+            
+      initContainers:
+        - name: init-index-id
+          image: busybox
+          command:
+            - "/bin/sh"
+            - "-c"
+            - |
+              index=$(hostname | grep -o '[^-]*$')
+              echo $index > /mnt/config/index_id
+          volumeMounts:
+            - name: config-volume
+              mountPath: /mnt/config
+      volumes:
+        - name: config-volume
+          emptyDir: {}
+      {{- if $.Values.affinity.enabled }}
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "same"
+                    operator: In
+                    values:
+                      - "pod-affinity"
+              topologyKey: "kubernetes.io/hostname"
+      {{- end }}
+      {{- with $.Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}  # End the range block for $cdc

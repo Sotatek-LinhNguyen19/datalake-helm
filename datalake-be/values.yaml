@@ -1,0 +1,118 @@
+# Namespace for platform
+namespace: staging
+
+common: datalake-backend
+
+# Duplicate for pod 
+replicaCount: 1
+
+# Secret to pull image from registry.sotaicg.com repository
+imagePullSecrets:
+  - name: repository-sotaicg-secret
+    enabled: false
+
+image:
+  repository: linhnguyen17/datalake-backend
+  tag: latest
+  pullPolicy: Always
+
+service:
+  name: datalake-backend-service
+  type: NodePort
+  protocol: TCP
+  port: 8080
+  targetPort: 30999
+
+container:
+  name: datalake-backend-pod
+  portName: http
+  portValue: 8080
+  portProtocol: TCP
+
+# Deployment
+deployment:
+  name: datalake-backend-deployment
+
+# Jobs
+minio:
+  name: datalake-jobs-minio
+  command: ./minio-be --command=minio
+  replicaCount: 1
+
+elastic:
+  name: datalake-jobs-elastic
+  command: ./minio-be --command=elastic
+  replicaCount: 1
+
+mongo:
+  name: datalake-jobs-mongo
+  command: ./minio-be --command=mongo
+  replicaCount: 1
+
+# Ingress for application and minio object 
+# Application
+backend_ingress:
+  secname: datalake-backend-secret
+  enabled: true
+  name: datalake-backend-ingress
+  className: nginx
+  host: stg.data-platform-api.sotaicg.com
+  path: "/"
+  serviceName: datalake-backend-service
+  servicePort: 8080
+  tls:
+    - secretName: datalake-backend-secret
+      hosts:
+        - stg.data-platform-api.sotaicg.com
+
+# Secret
+# Environment-backend
+environment_backend:
+  name: environment-backend
+
+annotations:
+  secret.reloader.stakater.com/reload: "env-backend-stg"
+
+# Resource for pod
+resources:
+  requests:
+    cpu: "2000m"
+    memory: "1040Mi"
+
+# Security
+securityContext:
+  runAsUser: 0
+  privileged: true
+  fsGroup: 0
+
+# HPA for scaling
+hpa:
+  minReplicas: 1
+  maxReplicas: 25
+  ram:
+    - averageUtilization: 70
+  cpu:
+    - averageUtilization: 70
+  behavior:
+    scaleDown:
+      - value: 100
+    scaleUp:
+      - value: 100
+
+# Heathchecking
+readinessProbe:
+  httpGet:
+    path: /healthcheck
+    port: 8080
+  initialDelaySeconds: 20
+  periodSeconds: 15
+  failureThreshold: 3
+  successThreshold: 1
+
+livenessProbe:
+  httpGet:
+    path: /healthcheck
+    port: 8080
+  initialDelaySeconds: 15
+  periodSeconds: 10
+  failureThreshold: 5

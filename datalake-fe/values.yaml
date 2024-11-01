@@ -1,0 +1,45 @@
+replicaCount: 1
+
+namespace: staging
+
+image:
+  repository: linhnguyen17/datalake-frontend
+  tag: latest
+  pullPolicy: Always
+
+service:
+  name: datalake-frontend-service
+  type: NodePort
+  protocol: TCP
+  port: 80
+  targetPort: 31001
+
+container:
+  name: datalake-frontend-pod
+  portName: http
+  portValue: 80
+  portProtocol: TCP
+
+# Secret to pull image from private repository
+imagePullSecrets:
+  - name: repository-sotaicg-secret
+
+# Deployment
+deployment:
+  name: datalake-frontend-deployment
+
+# Ingress for application and minio object 
+# Application
+frontend_ingress:
+  secret: datalake-frontend-tls-secret
+  enabled: true
+  name: datalake-frontend-ingress
+  className: nginx
+  host: data-platform-api.sotaicg.com
+  path: /
+  serviceName: datalake-frontend-service
+  servicePort: 80
+  tls:
+    - secretName: datalake-frontend-tls-secret
+      hosts:
+        - data-platform-api.sotaicg.com

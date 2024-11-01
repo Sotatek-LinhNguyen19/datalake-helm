@@ -1,0 +1,38 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Values.frontend_ingress.name }}
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "PUT, GET, POST, OPTIONS, DELETE"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "*"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/cors-expose-headers: "*"
+    nginx.ingress.kubernetes.io/cors-max-age: "1728000"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  namespace: {{ .Values.namespace }}
+spec:
+  ingressClassName: {{ .Values.frontend_ingress.className }}
+  {{- if .Values.frontend_ingress.tls }}
+  tls:
+    {{- range .Values.frontend_ingress.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}   
+  rules:
+    - host: {{ .Values.frontend_ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Values.frontend_ingress.serviceName }}   
+                port:
+                  number: {{ .Values.frontend_ingress.servicePort }}       

@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.deployment.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: latest
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: latest
+  template:
+    metadata:
+      labels:
+        app: latest
+    spec:
+      {{- range .Values.imagePullSecrets}}
+      imagePullSecrets:
+        - name: {{ .name }}
+      {{- end }}
+      containers:
+        - name: {{ .Values.container.name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: {{ .Values.container.portName }}
+              containerPort: {{ .Values.container.portValue }}
+              protocol: {{ .Values.container.portProtocol }}
+

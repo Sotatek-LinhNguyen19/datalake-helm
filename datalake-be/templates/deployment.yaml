@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-deployment
+  labels:
+    app: latest
+spec:
+  # replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: latest
+  template:
+    metadata:
+      labels:
+        app: latest
+    spec:
+      containers:
+        - name: {{ .Values.container.name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: {{ .Values.container.portName }}
+              containerPort: {{ .Values.container.portValue }}
+              protocol: {{ .Values.container.portProtocol }}
+          envFrom:
+            - secretRef:
+                name: {{ .Values.environment_backend.name }}
+          command:
+            - "/bin/sh"
+            - "-c"
+            - "./minio-be --command=server"
+

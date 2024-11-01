@@ -1,0 +1,160 @@
+# Namespace where the Deployment, Service, and other resources will be created.
+namespace: staging
+
+# Revision history limit configuration
+revisionHistoryLimit: 1
+
+# Docker image configuration
+image:
+  repository: linhnguyen17/datalake-milvus
+  pullPolicy: Always
+  tag: latest
+
+# Secrets used for image pull authentication
+imagePullSecrets:
+  - name: registry-sotaicg-secret
+    enabled: false
+
+# Override the name of the Helm release (optional)
+nameOverride: ""
+fullnameOverride: ""
+
+# Additional annotations for the Pod
+annotations:
+  secret.reloader.stakater.com/reload: "tracking-vault-stg"
+
+# Service Account configuration for the Pod
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Pod configuration
+pod:
+  # Name of the Pod (used to distinguish Pods in the Deployment)
+  name: http
+  containerPort: 8000
+  protocol: TCP
+
+# Additional annotations for the Pod
+podAnnotations: {}
+
+# Pod Security Context configuration (adjusts Pod permissions)
+podSecurityContext: {}
+
+# Security Context configuration (adjusts container permissions)
+securityContext: {}
+
+# Environment variable for the backend application (name of the Vault secret)
+environment_cdc:
+  name: tracking-vault-stg
+
+# Service configuration to expose the application within the cluster
+service:
+  type: ClusterIP
+  port: 8000
+  annotations: {}
+  nodePort: 0
+
+
+# Resource (CPU, RAM) configuration for the Pod
+resources:
+  requests:
+    cpu: "300m"
+    memory: "300Mi"
+  limits:
+    cpu: "300m"
+    memory: "300Mi"
+
+# Initial number of Pod replicas
+replicaCount: 1
+
+# Autoscaling configuration
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 20
+  ram:
+    - averageUtilization: 70
+  cpu:
+    - averageUtilization: 70
+  behavior:
+    scaleDown:
+      - value: 100
+    scaleUp:
+      - value: 100
+
+# Probes to check the Pod's status
+readinessProbe:
+  enabled: false
+  httpGet:
+    path: /healthcheck
+    port: 8080
+  initialDelaySeconds: 20
+  periodSeconds: 15
+  failureThreshold: 3
+  successThreshold: 1
+
+livenessProbe:
+  enabled: false
+  httpGet:
+    path: /healthcheck
+    port: 8080
+  initialDelaySeconds: 15
+  periodSeconds: 10
+  failureThreshold: 5
+
+# Pod distribution constraints across nodes (optional)
+topologySpreadConstraints: {}
+
+# Tolerations to allow the Pod to run on nodes that don't meet certain conditions (optional)
+tolerations: []
+
+
+# Affinity rules for Pods (optional)
+affinity: {}
+
+cdc:
+  - name: services-internal-dataset
+    command: "poetry run python internal_sync.py -c 0"
+    replicaCount: 1
+  - name: services-internal-workspace
+    command: "poetry run python internal_sync.py -c 1"
+    replicaCount: 1
+  - name: services-internal-master-metadata
+    command: "poetry run python internal_sync.py -c 3"
+    replicaCount: 1
+  - name: services-internal-option-set
+    command: "poetry run python internal_sync.py -c 4"
+    replicaCount: 1
+  - name: services-es-dataset
+    command: "poetry run python external_sync.py -c 0 -d es"
+    replicaCount: 1
+  - name: services-es-workspace
+    command: "poetry run python external_sync.py -c 1 -d es"
+    replicaCount: 1
+  - name: services-es-file
+    command: "poetry run python external_sync.py -c 2 -d es"
+    replicaCount: 1
+  - name: services-es-master-metadata
+    command: "poetry run python external_sync.py -c 3 -d es"
+    replicaCount: 1
+  - name: services-es-wiki-paragraph
+    command: "poetry run python external_sync.py -c 4 -d es"
+    replicaCount: 1
+  - name: services-es-search-center
+    command: "poetry run python external_sync.py -c 5"
+    replicaCount: 1
+  - name: services-es-wiki-document
+    command: "poetry run python external_sync.py -c 5 -d es"
+    replicaCount: 1
+  - name: services-milvus-file
+    command: "poetry run python external_sync.py -c 2 -d milvus -r yes"
+    replicaCount: 1
+  - name: services-milvus-wiki-paragraph
+    command: "poetry run python external_sync.py -c 4 -d milvus -r yes"
+    replicaCount: 1
+  - name: services-change-mongo-kafka
+    command: "poetry run python kafka_sync.py"
+    replicaCount: 1
+  
